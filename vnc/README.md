@@ -10,9 +10,11 @@ VNC默认使用5900到5906号TCP端口，而JAVA的VNC客户端使用5800至5806
 VNC并非安全的协议，虽然密码传输经过加密，但仍然可以暴力破解，可通过SSH或者VPN传输增加安全性
 
 # 安装
-## centos
+## centos 8 stream
 
 yum install -y tigervnc-server
+
+实际安装版本: tigervnc-server-1.11.0-9.el8
 
 > tigervnc 使用端口号默认为 5900 + display
 
@@ -22,5 +24,6 @@ yum install -y tigervnc-server
 3. Run `systemctl enable vncserver@:<display>.service`
 4. Run `systemctl start vncserver@:<display>.service`
 
-> 如果需要远程连接需要最好是使用 ssh tunnel
-> 远程直连的话需要把 config 里面的 localhost 设置为 no
+> 1. 如果需要远程连接需要最好是使用 ssh tunnel
+> 2. 远程直连的话需要把 config 里面的 localhost 设置为 no
+> 3. 设置对应密码使用 vncpasswd 命令
