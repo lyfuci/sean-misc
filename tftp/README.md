@@ -15,6 +15,7 @@ tftp 是小型文件传输协议(Trivial File Transfer Protocol, TFTP) 默认端
 
 
 # 安装 
+## centos
 ```bash
 
 yum install -y tftp-server
