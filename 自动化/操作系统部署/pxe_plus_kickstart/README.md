@@ -15,4 +15,30 @@ _kickstart_ : 记录安装linux安装过程的文件，一般在已经装好的�
 7. server(tftp) 收到 client 请求后，提供 vmlinuz 和 initrd.img 文件
 8. client 执行 vmlinux 和 .img 文件 ,依据 default 文件中的配置 向 server(文件服务) 请求相关 kickstart 脚本和安装软件包的文件，进行自动安装
 
-//TODO: 添加示例文件
+服务逻辑:
+server ip: 10.5.5.50
+dhcp
+文件服务(nginx提供的http)
+tftp
+
+dhcpd.conf:
+```dhcp
+subnet 10.5.5.0 netmask 255.255.255.0 {
+  range 10.5.5.100 10.5.5.200;
+  default-lease-time 600;
+  max-lease-time 7200;
+  next-server 10.5.5.50;
+  filename "pxelinux.0";
+}
+```
+> pxelinux.0 放在tftp服务根目录下，由dhcp中的 next-server 和 filename 来被 客户端发现，仅 vmlinuz 和 initrd.img 文件需要从安装镜像的iso目录下拷贝，其余必须文件都能在安装了syslinux后，在 /usr/share/syslinux 中找到
+
+pxelinux.cfg/default:
+```pxe
+default menu.c32
+timeout 1
+label select-me
+  kernel vmlinuz
+  append initrd=initrd.img method=http://10.5.5.50/iso ks=http://10.5.5.50/ks.cfg
+```
+> method 指的是软件包的位置 ks 是 kickstart 文件的位置
