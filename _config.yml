@@ -2,3 +2,9 @@ theme: jekyll-theme-cayman
 markdown: kramdown
 plugins:
   - jekyll-toc
+
+encoding: utf-8
+timezone: Asia/Shanghai
+
+kramdown:
+  parse_block_html: true
