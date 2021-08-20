@@ -1,12 +1,3 @@
-<div>
-  <div id="table-of-contents">
-    {{ content | toc_only }}
-  </div>
-  <div id="markdown-content">
-    {{ content | inject_anchors }}
-  </div>
-</div>
-
 # 文件
 ## 查找文件
 ### find
@@ -38,3 +29,11 @@
 > 2>>/dev/null 排除部分异常信息
 
 
+<div>
+  <div id="table-of-contents">
+    {{ content | toc_only }}
+  </div>
+  <div id="markdown-content">
+    {{ content | inject_anchors }}
+  </div>
+</div>
