@@ -344,3 +344,196 @@ fact 变量是被控制主机上面被 **自动** 发现的变量，包括了大
 
 > 上面需要密码的命令的面膜都可以通过  --vault-id some_file 传入，解决命令交互问题
 > 一个vault-id 的格式是 tag@file, 多个密钥的输入可以用tag来进行标记，ansible会对所有密钥进行尝试
+
+
+## 流程控制
+
+### 循环控制
+在 playbook 的 tasks 中加入 loop(yaml 列表) 元素来使task魂环
+
+```yaml
+---
+- name: add users
+  hosts: servera.lab.example.com
+  vars:
+    users:
+      - name: user1
+        group: group1
+      - name: user2
+        group: group2
+  tasks:
+  - name: add group
+    group:
+      name: "{{item.group}}"
+      state: present
+    loop: "{{users}}"
+  - name: add user
+    user:
+      name: "{{item.name}}"
+      group: "{{item.group}}"
+      state: present
+    loop: "{{users}}"
+```
+
+### 仅在特定条件下运行task
+仅在没有 用户和组 的主机上添加对应用户和主机
+```yaml
+---
+- name: add users
+  hosts:
+    - servera.lab.example.com
+    - serverb.lab.example.com
+  vars:
+    doit: true
+    users:
+      - name: user1
+        group: group1
+      - name: user2
+        group: group2
+  tasks:
+    - name: add group
+      group:
+        name: "{{item.group}}"
+        state: present
+      loop: "{{users}}"
+      when: doit
+    - name: add user
+      user:
+        name: "{{item.name}}"
+        group: "{{item.group}}"
+        state: present
+      loop: "{{users}}"
+      when: doit
+```
+> when 后面的条件是不需要引号和花括号的 且 loop 里面的 item 也能用来进行条件判断 <br>
+> 常用判断符号: 
+>  <br> 1. == 
+>  <br> 2. != 
+>  <br> 3. > 
+>  <br> 4. < 
+>  <br> 5. <= 
+>  <br> 6. >= 
+>  <br> 7. !=
+>  <br> 8. is defined
+>  <br> 9. is not defined
+>  <br> 10. in  #用来判断元素在不在集合中
+>  <br>   
+> 连接符号: 
+>  <br> 1. and
+>  <br> 2. or
+
+
+### 仅当收到 *变更* 通知时执行的任务(handlers)
+
+```yaml
+---
+- name: check config and restart
+  hosts: 
+    - localhost
+  tasks:
+    - name: check config
+      template:
+        src: /var/lib/templates/demo.example.conf.template
+        dest: /etc/httpd/conf.d/demo.example.conf
+      notify:
+        - restart apache
+  handlers:
+    - name: restart apache
+      service:
+        name: httpd
+        state: restarted
+```
+> 只有 task 执行状态为 changed 的时候 handler 才会响应。 <br>
+> 因为多个任务中途可能出现失败的情况，只要任意 task 失败 最终 handlers 都不会执行，
+> 而下一次再次执行的时候已经完成的 task 一般不会为 changed 状态，所以 handler 此时就不会执行
+> 需要在 playbook 的层级加入 force_handlers: true 参数 来让成功的 handler, 下面这个脚本
+> 可以通过注释 force_handlers 来测试
+> ```yaml
+> ---
+> - name: test failure
+>   hosts: localhost
+>   force_handlers: true
+>   tasks:
+>     - name: success task
+>       command: /bin/true
+>       notify: restart the database
+>     - name: failure task
+>       yum:
+>         name: lkjsdkfj
+>         state: latest
+>   handlers:
+>     - name: restart the database
+>       command: echo "restart the database"
+> ```
+
+
+### 处理 task 执行失败
+
+1. 忽略错误
+
+  `ignore_errors`
+
+2. 失败后强制执行 handler 进行处理 
+
+  `force_handlers: true`
+
+3. 自己处理失败
+
+一般只在使用 shell 脚本的场景才会用到,因为shell 模块只判断 脚本有没有执行,执行过的状态就是 changed, 实际是否成功和changed需要自己判断
+
+方式1：把这个任务标记为失败
+
+```yaml
+tasks:
+  - name: run custom script
+    shell: /usr/local/bin/mysh.sh
+    regster: command_result
+    failed_when: "'some words' in command_result.stdout"
+```
+也可以把这个任务标记为 changed
+```yaml
+tasks:
+  - name: run custom script
+    shell: /usr/local/bin/mysh.sh
+    regster: command_result
+    changed_when: "'some words' in command_result.stdout"
+```
+
+
+方式2：把其它任务标记为失败
+```yaml
+tasks:
+  - name: run custom script
+    shell: /usr/local/bin/mysh.sh
+    regster: command_result
+    ignore_errors: true
+  - name: report error
+    fail: 
+      msg: "some words in the output"
+    when: "'some words' in command_result.stdout"
+```
+
+4. 定义一组逻辑的 task 放至同一个block中
+
+对应 java 中的 try catch finally
+
+block 块失败才会执行 rescue 块, 如论如何都会执行 always 块中的内容
+```yaml
+tasks:
+  - name: Upgrade DB
+    block:
+      - name: upgrade the database
+        shell:
+          cmd: /usr/local/lib/upgrade-database
+    rescue:
+      - name: revert the database upgrade
+        shell:
+          cmd: /usr/local/lib/revert-database
+    always:
+      - name: always restart the database
+        service:
+          name: mariadb
+          state: restarted
+
+```
+
