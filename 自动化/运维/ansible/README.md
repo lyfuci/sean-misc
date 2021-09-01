@@ -40,6 +40,11 @@ inventory 文件读取顺序:
 1. /etc/ansible/hosts (默认文件 不加 -i 参数的时候就会读取这个文件 )
 2. -i 参数指定的文件 (一旦指定了 -i 参数就不会使用 /etc/ansible/hosts 文件了)
 
+### 动态 inventory
+动态 inventory 文件一般为一个脚本
+
+* 必修: 脚本 `./dynamic_script.py --list` 的运行结果应该与 `ansible-inventory -i static_inventory --list` 格式一致
+* 选修: `./dynamic_script.py --host hostname` 打印对应 host 的变量信息
 
 ## ansible 配置文件
 
@@ -111,7 +116,6 @@ adhoc 是一次性运行的命令，格式一般如下:
 `ansible-doc -l`
 
 ### 查看模块文档详情
-
 `ansible-doc module-name`
 
 ## 常用模块
@@ -119,9 +123,13 @@ adhoc 是一次性运行的命令，格式一般如下:
 
 Files Modules:
 * copy: 拷贝本地文件到被管理主机
-* file: 设置权限和其它文件属性
-* lineinfile: 确认文件内是否存在特殊的一行文本
+* file: 文件、链接、目录的删除，设置权限、selinux上下文和其它文件属性等
+* lineinfile: 确认文件内是否存在特殊的一行文本，或者替换一行文本
 * synchronize: 使用 rsync 同步内容
+* blockinfile: 插入、更新、删除一个被自定义标记行标记的多行文本块
+* fetch: 与 copy 模块类似，但是方向相反，从被管理主机拷贝到控制节点
+* stat: 跟 stat 命令一样获取文件状态信息
+* sefcontext: 设置文件安全上下文
 
 Software package modules:
 * package: 管理包使用自动检测操作系统的本地包管理工具
@@ -136,6 +144,8 @@ system modules
 * reboot: 重启机器
 * service: 管理服务
 * user: 添加删除和管理用户
+* selinux: selinux 上下文设置
+
 
 net tools modules
 * get_url: 使用http、https、ftp下载文件
@@ -505,7 +515,7 @@ tasks:
 tasks:
   - name: run custom script
     shell: /usr/local/bin/mysh.sh
-    regster: command_result
+    register: command_result
     ignore_errors: true
   - name: report error
     fail: 
@@ -537,3 +547,181 @@ tasks:
 
 ```
 
+## Jinja2 模板
+Jinja2模板是由 数据、变量和表达式等元素构成的模板，变量和表达式在使用时将被Jinja2模板引擎渲染
+
+jinja2 模板一般配合 template 模板使用, 可以将对应的模板渲染之后的内容拷贝到被管理主机上，如下 :
+
+最简单的用法:
+```yaml
+tasks:
+  - name: template render
+    vars:
+      var_name: my name is xiaoming
+    template:
+      src: j2-template.j2
+      dest: dest-config-file.txt
+```
+`j2.template.js` 的内容
+```jinja2
+{{ var_name }}
+```
+
+控制结构
+1. 循环
+```jinja2
+{# comment #}
+{% for user in users %}
+  {{ user }}
+{% endfor %}
+```
+2. 带条件循环
+```jinja2
+{% for myuser in users if not myuser == 'root' %}
+  {{ myuser }}
+{% endfor %}
+```
+
+3. 条件判断
+只有当 finished 是 true 的时候会输出 result 变量
+```jinja2
+{% if finished %}
+  {{ result }}
+{% else %}
+  {{ another_result }}
+{% endif %}
+```
+
+## ansible role
+role 你可以根据已知的文件结构自动加载相关的vars, files, tasks, handlers 和其他 Ansible artifacts。 将您的内容按 role 分组后，您可以轻松地重复使用它们并与其他用户共享。
+
+role 的目录结构
+```yaml
+tasks/
+handlers/
+library/
+files/
+templates/
+vars/
+defaults/
+meta/
+```
+
+* tasks/main.yml - the main list of tasks that the role executes.
+
+* handlers/main.yml - handlers, which may be used within or outside this role.
+
+* library/my_module.py - modules, which may be used within this role (see Embedding modules and plugins in roles for more information).
+
+* defaults/main.yml - default variables for the role (see Using Variables for more information). These variables have the lowest priority of any variables available, and can be easily overridden by any other variable, including inventory variables.
+
+  defaults 下面的变量任何地方的变量都能替换它 
+
+* vars/main.yml - other variables for the role (see Using Variables for more information).
+
+  vars 目录下面定义的变量不能被inventory里面的变量覆盖，但是可以被playbook里面的变量覆盖
+
+* files/main.yml - files that the role deploys.
+
+* templates/main.yml - templates that the role deploys.
+
+* meta/main.yml - metadata for the role, including role dependencies.
+
+  定义依赖
+```yaml
+dependencies:
+  - role: rolea
+    vara: vala
+  - role: roleb
+    varb: valb
+```
+
+### role 的使用
+
+ansible 会在 当前目录下的 roles 子目录查找 role，也可以通过 [defaults] 下的 roles_path 来定义查找 role 的位置
+默认位置如下 ~/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles
+
+一个使用 role 的格式如下
+```yaml
+
+---
+- name: role demo
+  hosts: some_hosts
+  roles:
+    - role: arole
+    - role: brole
+      vara: a
+      varb: b
+```
+
+### 定义了 role 的 playbook task 执行的优先级
+
+1. pre_tasks
+2. role 的tasks
+3. plabook的 tasks
+4. post_tasks
+
+### role 的创建
+`ansible-galaxy init demo-role`
+
+### role 的下载
+`ansible-galaxy collection install`
+
+### role 的查找
+`ansible-galaxy search 'role_name'`
+
+### role 的详细信息
+`ansible-galaxy info 'role_name'`
+
+### 安装依赖的 role
+`ansible-galaxy install -r roles/requirements.yml`
+
+### 列出目前可使用的role
+`ansible-galaxy list`
+
+### 删除role
+`ansible-galaxy remove role_name`
+
+
+## 特殊说明
+### hosts 匹配
+hosts 字段支持的基本操作
+
+| 描述      | pattern(s) | 目标 |
+| ----------- | ----------- | ----------- |
+| All hosts | all (or *)       |  |
+| One host | host1        | |
+| Multiple hosts | host1:host2 (or host1,host2)| |
+| One group | webservers        | |
+| Multiple groups | webservers:dbservers        | all hosts in webservers plus all hosts in dbservers  |
+| Excluding groups | webservers:!atlanta| all hosts in webservers except those in atlanta |
+| Intersection of groups | webservers:!atlanta| any hosts in webservers that are also in staging |
+
+此外，hosts 还支持以下特性
+1. 支持*通配符
+2. 支持 python 切片(数组)
+3. 支持 正则表达式， 
+
+详情参见[这里](https://docs.ansible.com/ansible/latest/user_guide/intro_patterns.html#intro-patterns)
+
+### 引用多个 inventory 文件
+
+如果引用了多个 inventory 文件，a文件中引用了b文件中的组作为子组，则应该在a中加入b中这个子组的空组，避免b中删除被引用的组后，组缺失导致的相关问题。
+
+### playbook 中的 serial 参数
+
+这个参数在管理大量的主机的时候可以管理一次性执行的最大主机数量，应用在滚动更新等场景, serial 个主机执行完成 playbook 后才开始下一批 serial个主机执行
+
+### ansible.cfg 中的 forks 参数
+指定并行运行的线程数
+
+### import 和 include
+import 是静态导入，在执行之前脚本就会变成最终的样子，操作对象一般是playbook
+include 是动态导入，在执行之前脚本的内容是不存在的，操作对象一般是task
+
+import_* 的优势是提前渲染，可以在引入的地方，直接使用导入的内容的 name 或者其它信息,但是一些条件判断，如 when 则每个 task 都会带上，会执行很多次
+include_* 的优势是动态渲染，在引入的地方,使用 loop 来动态执行，如 when 之类的 task 执行判断，只针对整个被 include 的文件进行判断，只有一次
+
+支持的操作符 
+* import_playbook
+* import_tasks
