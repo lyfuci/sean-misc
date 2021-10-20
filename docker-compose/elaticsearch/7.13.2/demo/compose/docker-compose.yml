@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  elasticsearch:
+    image: buildimage:7.13.2
+    ports:
+      - 9200:9200
+    restart: always
+    env_file:
+      - ./.config.env
+    volumes:
+      - ./data:/usr/share/elasticsearch/data/nodes
