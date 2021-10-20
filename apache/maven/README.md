@@ -7,7 +7,7 @@ Apache Maven 是一个软件项目管理的综合性工具。基于项目对象�
 ### 局域网上传工件到 repository
 在某些场景下，需要上传工件到某些局域网的 maven 私服仓库，然后供其它局域网内的应用使用，但是私服无法直接出公网，这就需要上传本地的 maven 仓库到私服。
 
-[deploy-repository.sh](./deploy-to-private-repository.sh)
+[deploy-to-private-repository.sh](./deploy-to-private-repository.sh)
 
 需要指定这个脚本里面的 settings 和 url 变量，两个变量意义分别如下
 settings： 配置了私服用户密码等信息的配置文件
