@@ -26,4 +26,4 @@ yum install autofs
 ```txt
 cd    -fstype=iso9660,ro,nosuid,nodev :/dev/cdrom
 ```
-表示访问 `cd` 这个目录时 以指定的参数 将 `/dev/cdrom` 设备挂载到这个目录
+表示访问 `/misc` 下的 `/cd` 这个目录时 以指定的参数 将 `/dev/cdrom` 设备挂载到这个目录

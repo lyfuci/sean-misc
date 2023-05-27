@@ -46,6 +46,17 @@ inventory 文件读取顺序:
 * 必修: 脚本 `./dynamic_script.py --list` 的运行结果应该与 `ansible-inventory -i static_inventory --list` 格式一致
 * 选修: `./dynamic_script.py --host hostname` 打印对应 host 的变量信息
 
+### inventory 插件
+下面命令在`ansible.cfg`未修改的情况下可以查找默认启用的 inventory 插件
+```shell
+#find default ansible enabled plugin
+grep -A 3  '\[inventory\]' /etc/ansible/ansible.cfg
+```
+下面领命可以查看与inventory相关的插件列表
+```shell
+ansible-doc -t inventory -l
+```
+
 ## ansible 配置文件
 
 ### 查看当前使用的 配置文件
@@ -168,7 +179,7 @@ net tools modules
     - servera
   # play what (predicate)
   tasks:
-    - name: seansun exists with UID 4000
+    - name: seansun exists with UID 2000
       user: # 模块名
         name: seansun # 模块参数
         uid: 2000
@@ -725,3 +736,6 @@ include_* 的优势是动态渲染，在引入的地方,使用 loop 来动态执
 支持的操作符 
 * import_playbook
 * import_tasks
+
+
+高效维护 ansible playbook 参见 [TIPS.md](TIPS.md)
